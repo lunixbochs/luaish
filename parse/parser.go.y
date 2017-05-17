@@ -335,7 +335,7 @@ expr:
             $$.SetLine($1.Line())
         } |
         expr TNeq expr {
-            $$ = &ast.RelationalOpExpr{Lhs: $1, Operator: "~=", Rhs: $3}
+            $$ = &ast.RelationalOpExpr{Lhs: $1, Operator: "!=", Rhs: $3}
             $$.SetLine($1.Line())
         } |
         expr T2Comma expr {

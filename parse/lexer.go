@@ -358,13 +358,13 @@ redo:
 				tok.Type = ch
 				tok.Str = string(ch)
 			}
-		case '~':
+		case '!':
 			if sc.Peek() == '=' {
 				tok.Type = TNeq
-				tok.Str = "~="
+				tok.Str = "!="
 				sc.Next()
 			} else {
-				err = sc.Error("~", "Invalid '~' token")
+				err = sc.Error("!", "Invalid '!' token")
 			}
 		case '<':
 			if sc.Peek() == '=' {
