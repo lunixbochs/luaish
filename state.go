@@ -6,7 +6,7 @@ package lua
 
 import (
 	"fmt"
-	"github.com/yuin/gopher-lua/parse"
+	"github.com/lunixbochs/luaish/parse"
 	"golang.org/x/net/context"
 	"io"
 	"math"

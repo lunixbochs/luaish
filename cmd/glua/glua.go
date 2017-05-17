@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"github.com/yuin/gopher-lua"
-	"github.com/yuin/gopher-lua/parse"
+	"github.com/lunixbochs/luaish"
+	"github.com/lunixbochs/luaish/parse"
 	"os"
 	"runtime/pprof"
 )

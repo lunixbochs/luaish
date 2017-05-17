@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/yuin/gopher-lua/pm"
+	"github.com/lunixbochs/luaish/pm"
 )
 
 func OpenString(L *LState) int {
