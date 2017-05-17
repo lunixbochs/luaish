@@ -404,7 +404,16 @@ redo:
 				tok.Type = '.'
 			}
 			tok.Str = buf.String()
-		case '+', '*', '/', '%', '^', '#', '(', ')', '{', '}', ']', ';', ':', ',':
+		case '*':
+			if sc.Peek() == '*' {
+				tok.Type = TPow
+				tok.Str = "**"
+				sc.Next()
+			} else {
+				tok.Type = ch
+				tok.Str = string(ch)
+			}
+		case '+', '/', '%', '#', '(', ')', '{', '}', ']', ';', ':', ',':
 			tok.Type = ch
 			tok.Str = string(ch)
 		default:

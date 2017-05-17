@@ -65,7 +65,7 @@ import (
 %left '+' '-'
 %left '*' '/' '%'
 %right UNARY /* not # -(unary) */
-%right '^'
+%right TPow
 
 %%
 
@@ -362,7 +362,7 @@ expr:
             $$ = &ast.ArithmeticOpExpr{Lhs: $1, Operator: "%", Rhs: $3}
             $$.SetLine($1.Line())
         } |
-        expr '^' expr {
+        expr TPow expr {
             $$ = &ast.ArithmeticOpExpr{Lhs: $1, Operator: "^", Rhs: $3}
             $$.SetLine($1.Line())
         } |
