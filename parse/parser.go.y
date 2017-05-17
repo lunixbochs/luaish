@@ -23,7 +23,8 @@ import (
 %type<expr> functioncall
 %type<expr> afunctioncall
 %type<exprlist> args
-%type<exprlist> spaceargs
+%type<expr> barecall
+%type<exprlist> bareargs
 %type<expr> function
 %type<funcexpr> funcbody
 %type<parlist> parlist
@@ -31,6 +32,7 @@ import (
 %type<fieldlist> fieldlist
 %type<field> field
 %type<fieldsep> fieldsep
+%type<token> anyident
 
 %union {
   token  ast.Token
@@ -56,7 +58,7 @@ import (
 %token<token> TAnd TBreak TDo TElse TElseIf TEnd TFalse TFor TFunction TIf TIn TLocal TNil TNot TOr TReturn TRepeat TThen TTrue TUntil TWhile 
 
 /* Literals */
-%token<token> TEqeq TNeq TLte TGte T2Comma T3Comma TIdent TNumber TString '{' '('
+%token<token> TEqeq TNeq TLte TGte T2Comma T3Comma TIdent TIdentSpace TNumber TString '{' '('
 
 /* Operators */
 %left TOr
@@ -106,6 +108,10 @@ block:
             $$ = $1
         }
 
+anyident:
+		TIdentSpace { $$ = $1 }
+	  | TIdent { $$ = $1 }
+
 stat:
         varlist '=' exprlist {
             $$ = &ast.AssignStmt{Lhs: $1, Rhs: $3}
@@ -114,8 +120,10 @@ stat:
         /* 'stat = functioncal' causes a reduce/reduce conflict */
         prefixexp {
             if _, ok := $1.(*ast.FuncCallExpr); !ok {
-               $$ = &ast.HalfStmt{Expr: $1}
-               $$.SetLine($1.Line())
+                // if this is just a simple ident, it can be executed as a function (anywhere)
+                // otherwise this expression should be evaluated and printed if in a repl
+                $$ = &ast.HalfStmt{Expr: $1}
+                $$.SetLine($1.Line())
             } else {
               $$ = &ast.FuncCallStmt{Expr: $1}
               $$.SetLine($1.Line())
@@ -157,12 +165,12 @@ stat:
             $$.SetLine($1.Pos.Line)
             $$.SetLastLine($8.Pos.Line)
         } |
-        TFor TIdent '=' expr ',' expr TDo block TEnd {
+        TFor anyident '=' expr ',' expr TDo block TEnd {
             $$ = &ast.NumberForStmt{Name: $2.Str, Init: $4, Limit: $6, Stmts: $8}
             $$.SetLine($1.Pos.Line)
             $$.SetLastLine($9.Pos.Line)
         } |
-        TFor TIdent '=' expr ',' expr ',' expr TDo block TEnd {
+        TFor anyident '=' expr ',' expr ',' expr TDo block TEnd {
             $$ = &ast.NumberForStmt{Name: $2.Str, Init: $4, Limit: $6, Step:$8, Stmts: $10}
             $$.SetLine($1.Pos.Line)
             $$.SetLastLine($11.Pos.Line)
@@ -177,7 +185,7 @@ stat:
             $$.SetLine($1.Pos.Line)
             $$.SetLastLine($3.LastLine())
         } |
-        TLocal TFunction TIdent funcbody {
+        TLocal TFunction anyident funcbody {
             $$ = &ast.LocalAssignStmt{Names:[]string{$3.Str}, Exprs: []ast.Expr{$4}}
             $$.SetLine($1.Pos.Line)
             $$.SetLastLine($4.LastLine())
@@ -189,7 +197,15 @@ stat:
         TLocal namelist {
             $$ = &ast.LocalAssignStmt{Names: $2, Exprs:[]ast.Expr{}}
             $$.SetLine($1.Pos.Line)
-        }
+        } |
+        barecall {
+            if _, ok := $1.(*ast.FuncCallExpr); !ok {
+               yylex.(*Lexer).Error("parse error 2")
+            } else {
+              $$ = &ast.FuncCallStmt{Expr: $1}
+              $$.SetLine($1.Line())
+            }
+		}
 
 elseifs: 
         {
@@ -218,16 +234,16 @@ funcname:
         funcname1 {
             $$ = $1
         } |
-        funcname1 ':' TIdent {
+        funcname1 ':' anyident {
             $$ = &ast.FuncName{Func:nil, Receiver:$1.Func, Method: $3.Str}
         }
 
 funcname1:
-        TIdent {
+        anyident {
             $$ = &ast.FuncName{Func: &ast.IdentExpr{Value:$1.Str}}
             $$.Func.SetLine($1.Pos.Line)
         } | 
-        funcname1 '.' TIdent {
+        funcname1 '.' anyident {
             key:= &ast.StringExpr{Value:$3.Str}
             key.SetLine($3.Pos.Line)
             fn := &ast.AttrGetExpr{Object: $1.Func, Key: key}
@@ -244,7 +260,7 @@ varlist:
         }
 
 var:
-        TIdent {
+        anyident {
             $$ = &ast.IdentExpr{Value:$1.Str}
             $$.SetLine($1.Pos.Line)
         } |
@@ -252,7 +268,7 @@ var:
             $$ = &ast.AttrGetExpr{Object: $1, Key: $3}
             $$.SetLine($1.Line())
         } | 
-        prefixexp '.' TIdent {
+        prefixexp '.' anyident {
             key := &ast.StringExpr{Value:$3.Str}
             key.SetLine($3.Pos.Line)
             $$ = &ast.AttrGetExpr{Object: $1, Key: key}
@@ -260,10 +276,10 @@ var:
         }
 
 namelist:
-        TIdent {
+        anyident {
             $$ = []string{$1.Str}
         } | 
-        namelist ','  TIdent {
+        namelist ','  anyident {
             $$ = append($1, $3.Str)
         }
 
@@ -409,24 +425,29 @@ afunctioncall:
         }
 
 functioncall:
-        prefixexp spaceargs {
-            $$ = &ast.FuncCallExpr{Func: $1, Args: $2}
-            $$.SetLine($1.Line())
-        } |
         prefixexp args {
             $$ = &ast.FuncCallExpr{Func: $1, Args: $2}
             $$.SetLine($1.Line())
         } |
-        prefixexp ':' TIdent args {
+        prefixexp ':' anyident args {
             $$ = &ast.FuncCallExpr{Method: $3.Str, Receiver: $1, Args: $4}
             $$.SetLine($1.Line())
         }
 
-spaceargs:
+barecall:
+        TIdentSpace bareargs {
+            ident := &ast.IdentExpr{Value:$1.Str}
+            ident.SetLine($1.Pos.Line)
+
+            $$ = &ast.FuncCallExpr{Func: ident, Args: $2}
+            $$.SetLine($1.Pos.Line)
+        }
+
+bareargs:
         expr {
             $$ = []ast.Expr{$1}
         } |
-        spaceargs expr {
+        bareargs expr {
             $$ = append($1, $2)
         }
 
@@ -442,6 +463,12 @@ args:
                yylex.(*Lexer).TokenError($1, "ambiguous syntax (function call x new statement)")
             }
             $$ = $2
+        } |
+        tableconstructor {
+            $$ = []ast.Expr{$1}
+        } |
+        string {
+            $$ = []ast.Expr{$1}
         }
 
 function:
@@ -500,7 +527,7 @@ fieldlist:
         }
 
 field:
-        TIdent '=' expr {
+        anyident '=' expr {
             $$ = &ast.Field{Key: &ast.StringExpr{Value:$1.Str}, Value: $3}
             $$.Key.SetLine($1.Pos.Line)
         } | 

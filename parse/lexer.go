@@ -42,6 +42,10 @@ func isDigit(ch int) bool {
 	return '0' <= ch && ch <= '9' || 'a' <= ch && ch <= 'f' || 'A' <= ch && ch <= 'F'
 }
 
+func isSpace(ch int) bool {
+	return ch == '\t' || ch == ' '
+}
+
 type Scanner struct {
 	Pos    ast.Position
 	reader *bufio.Reader
@@ -316,6 +320,8 @@ redo:
 		}
 		if typ, ok := reservedWords[tok.Str]; ok {
 			tok.Type = typ
+		} else if isSpace(sc.Peek()) {
+			tok.Type = TIdentSpace
 		}
 	case isDecimal(ch):
 		tok.Type = TNumber
