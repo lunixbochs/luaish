@@ -23,6 +23,7 @@ import (
 %type<expr> functioncall
 %type<expr> afunctioncall
 %type<exprlist> args
+%type<exprlist> spaceargs
 %type<expr> function
 %type<funcexpr> funcbody
 %type<parlist> parlist
@@ -113,7 +114,8 @@ stat:
         /* 'stat = functioncal' causes a reduce/reduce conflict */
         prefixexp {
             if _, ok := $1.(*ast.FuncCallExpr); !ok {
-               yylex.(*Lexer).Error("parse error")
+               $$ = &ast.HalfStmt{Expr: $1}
+               $$.SetLine($1.Line())
             } else {
               $$ = &ast.FuncCallStmt{Expr: $1}
               $$.SetLine($1.Line())
@@ -407,6 +409,10 @@ afunctioncall:
         }
 
 functioncall:
+        prefixexp spaceargs {
+            $$ = &ast.FuncCallExpr{Func: $1, Args: $2}
+            $$.SetLine($1.Line())
+        } |
         prefixexp args {
             $$ = &ast.FuncCallExpr{Func: $1, Args: $2}
             $$.SetLine($1.Line())
@@ -414,6 +420,14 @@ functioncall:
         prefixexp ':' TIdent args {
             $$ = &ast.FuncCallExpr{Method: $3.Str, Receiver: $1, Args: $4}
             $$.SetLine($1.Line())
+        }
+
+spaceargs:
+        expr {
+            $$ = []ast.Expr{$1}
+        } |
+        spaceargs expr {
+            $$ = append($1, $2)
         }
 
 args:
@@ -428,12 +442,6 @@ args:
                yylex.(*Lexer).TokenError($1, "ambiguous syntax (function call x new statement)")
             }
             $$ = $2
-        } |
-        tableconstructor {
-            $$ = []ast.Expr{$1}
-        } | 
-        string {
-            $$ = []ast.Expr{$1}
         }
 
 function:

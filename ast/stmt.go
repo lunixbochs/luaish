@@ -31,6 +31,12 @@ type FuncCallStmt struct {
 	Expr Expr
 }
 
+type HalfStmt struct {
+	StmtBase
+
+	Expr Expr
+}
+
 type DoBlockStmt struct {
 	StmtBase
 
