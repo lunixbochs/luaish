@@ -5,7 +5,8 @@ import (
 )
 
 /*
-  gopherlua uses Lua 5.1.4's opcodes.
+  luaish inserts opcodes wherever it's convenient.
+  gopherlua used Lua 5.1.4's opcodes.
   Lua 5.1.4 opcodes layout:
 
           instruction = 32bit(fixed length)
@@ -66,6 +67,13 @@ const (
 	OP_UNM /*       A B     R(A) := -R(B)                                   */
 	OP_NOT /*       A B     R(A) := not R(B)                                */
 	OP_LEN /*       A B     R(A) := length of R(B)                          */
+
+	OP_BNEG // A B     R(A) := ~R(B)
+	OP_XOR  // A B C   R(A) := R(B) ^ R(C)
+	OP_OR   // A B C   R(A) := R(B) | R(C)
+	OP_AND  // A B C   R(A) := R(B) & R(C)
+	OP_SHL  // A B C   R(A) := R(B) << R(C)
+	OP_SHR  // A B C   R(A) := R(B) >> R(C)
 
 	OP_CONCAT /*    A B C   R(A) := R(B).. ... ..R(C)                       */
 

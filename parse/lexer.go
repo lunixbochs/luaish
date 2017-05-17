@@ -373,20 +373,30 @@ redo:
 				err = sc.Error("!", "Invalid '!' token")
 			}
 		case '<':
-			if sc.Peek() == '=' {
+			switch sc.Peek() {
+			case '<':
+				tok.Type = TShl
+				tok.Str = "<<"
+				sc.Next()
+			case '=':
 				tok.Type = TLte
 				tok.Str = "<="
 				sc.Next()
-			} else {
+			default:
 				tok.Type = ch
 				tok.Str = string(ch)
 			}
 		case '>':
-			if sc.Peek() == '=' {
+			switch sc.Peek() {
+			case '>':
+				tok.Type = TShr
+				tok.Str = ">>"
+				sc.Next()
+			case '=':
 				tok.Type = TGte
 				tok.Str = ">="
 				sc.Next()
-			} else {
+			default:
 				tok.Type = ch
 				tok.Str = string(ch)
 			}
@@ -419,7 +429,7 @@ redo:
 				tok.Type = ch
 				tok.Str = string(ch)
 			}
-		case '+', '/', '%', '#', '(', ')', '{', '}', ']', ';', ':', ',':
+		case '+', '/', '%', '#', '(', ')', '{', '}', ']', ';', ':', ',', '^', '|', '&', '~':
 			tok.Type = ch
 			tok.Str = string(ch)
 		default:

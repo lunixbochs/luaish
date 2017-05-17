@@ -114,6 +114,11 @@ type ArithmeticOpExpr struct {
 	Rhs      Expr
 }
 
+type UnaryNegateOpExpr struct {
+	ExprBase
+	Expr Expr
+}
+
 type UnaryMinusOpExpr struct {
 	ExprBase
 	Expr Expr

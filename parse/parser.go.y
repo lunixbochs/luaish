@@ -2,6 +2,7 @@
 package parse
 
 import (
+  "fmt"
   "github.com/lunixbochs/luaish/ast"
 )
 %}
@@ -59,6 +60,8 @@ import (
 
 /* Literals */
 %token<token> TEqeq TNeq TLte TGte T2Comma T3Comma TIdent TIdentSpace TNumber TString '{' '('
+/* Bitwise Ops */
+%token<token> TShr TShl '~' '^' '|' '&'
 
 /* Operators */
 %left TOr
@@ -69,6 +72,9 @@ import (
 %left '*' '/' '%'
 %right UNARY /* not # -(unary) */
 %right TPow
+
+/* bitwise */
+%left '^' '|' '&' TShl TShr
 
 %%
 
@@ -381,9 +387,35 @@ expr:
             $$.SetLine($1.Line())
         } |
         expr TPow expr {
+            $$ = &ast.ArithmeticOpExpr{Lhs: $1, Operator: "**", Rhs: $3}
+            $$.SetLine($1.Line())
+        } | /* start bitwise */
+        expr TShl expr {
+            fmt.Println("TSHL")
+            $$ = &ast.ArithmeticOpExpr{Lhs: $1, Operator: "<<", Rhs: $3}
+            $$.SetLine($1.Line())
+        } |
+        expr TShr expr {
+            fmt.Println("TSHR")
+            $$ = &ast.ArithmeticOpExpr{Lhs: $1, Operator: ">>", Rhs: $3}
+            $$.SetLine($1.Line())
+        } |
+        expr '^' expr {
             $$ = &ast.ArithmeticOpExpr{Lhs: $1, Operator: "^", Rhs: $3}
             $$.SetLine($1.Line())
         } |
+        expr '|' expr {
+            $$ = &ast.ArithmeticOpExpr{Lhs: $1, Operator: "|", Rhs: $3}
+            $$.SetLine($1.Line())
+        } |
+        expr '&' expr {
+            $$ = &ast.ArithmeticOpExpr{Lhs: $1, Operator: "&", Rhs: $3}
+            $$.SetLine($1.Line())
+        } |
+        '~' expr %prec UNARY {
+            $$ = &ast.UnaryNegateOpExpr{Expr: $2}
+            $$.SetLine($2.Line())
+        } | /* end bitwise */
         '-' expr %prec UNARY {
             $$ = &ast.UnaryMinusOpExpr{Expr: $2}
             $$.SetLine($2.Line())

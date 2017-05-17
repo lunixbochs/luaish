@@ -343,6 +343,27 @@ func init() {
 		opArith, // OP_DIV
 		opArith, // OP_MOD
 		opArith, // OP_POW
+		// bitwise ops
+		func(L *LState, inst uint32, baseFrame *callFrame) int { // OP_BNEG
+			reg := L.reg
+			cf := L.currentFrame
+			lbase := cf.LocalBase
+			A := int(inst>>18) & 0xff //GETA
+			RA := lbase + A
+			B := int(inst & 0x1ff) //GETB
+			unaryv := L.rkValue(B)
+			if nm, ok := unaryv.(LNumber); ok {
+				reg.SetNumber(RA, -nm)
+			} else {
+				L.RaiseError("__neg unimplemented")
+			}
+			return 0
+		},
+		opArith, // OP_XOR
+		opArith, // OP_OR
+		opArith, // OP_AND
+		opArith, // OP_SHL
+		opArith, // OP_SHR
 		func(L *LState, inst uint32, baseframe *callFrame) int { //OP_UNM
 			reg := L.reg
 			cf := L.currentFrame
@@ -848,6 +869,17 @@ func numberArith(L *LState, opcode int, lhs, rhs LNumber) LNumber {
 		flhs := float64(lhs)
 		frhs := float64(rhs)
 		return LNumber(math.Pow(flhs, frhs))
+	// bitwise ops
+	case OP_XOR:
+		return LNumber(uint32(lhs) ^ uint32(rhs))
+	case OP_OR:
+		return LNumber(uint32(lhs) | uint32(rhs))
+	case OP_AND:
+		return LNumber(uint32(lhs) & uint32(rhs))
+	case OP_SHL:
+		return LNumber(uint32(lhs) << uint32(rhs))
+	case OP_SHR:
+		return LNumber(uint32(lhs) >> uint32(rhs))
 	}
 	panic("should not reach here")
 	return LNumber(0)
@@ -868,6 +900,20 @@ func objectArith(L *LState, opcode int, lhs, rhs LValue) LValue {
 		event = "__mod"
 	case OP_POW:
 		event = "__pow"
+
+	// bitwise ops
+	case OP_BNEG:
+		event = "__bnot"
+	case OP_XOR:
+		event = "__bxor"
+	case OP_OR:
+		event = "__bor"
+	case OP_AND:
+		event = "__band"
+	case OP_SHL:
+		event = "__shl"
+	case OP_SHR:
+		event = "__shr"
 	}
 	op := L.metaOp2(lhs, rhs, event)
 	if op.Type() == LTFunction {
