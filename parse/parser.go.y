@@ -119,6 +119,10 @@ anyident:
 	  | TIdent { $$ = $1 }
 
 stat:
+        varlist '=' barecall {
+            $$ = &ast.AssignStmt{Lhs: $1, Rhs: []ast.Expr{$3}}
+            $$.SetLine($1[0].Line())
+        } |
         varlist '=' exprlist {
             $$ = &ast.AssignStmt{Lhs: $1, Rhs: $3}
             $$.SetLine($1[0].Line())
@@ -249,6 +253,10 @@ elseifs:
         }
 
 laststat:
+        TReturn barecall {
+            $$ = &ast.ReturnStmt{Exprs:[]ast.Expr{$2}}
+            $$.SetLine($1.Pos.Line)
+        } |
         TReturn {
             $$ = &ast.ReturnStmt{Exprs:nil}
             $$.SetLine($1.Pos.Line)
