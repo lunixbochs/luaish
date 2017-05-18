@@ -2,7 +2,6 @@
 package parse
 
 import (
-  "fmt"
   "github.com/lunixbochs/luaish/ast"
 )
 %}
@@ -57,6 +56,7 @@ import (
 
 /* Reserved words */
 %token<token> TAnd TBreak TDo TElse TElseIf TEnd TFalse TFor TFunction TIf TIn TLocal TNil TNot TOr TReturn TRepeat TThen TTrue TUntil TWhile 
+%token<token> TOn /* magic syntax hook */
 
 /* Literals */
 %token<token> TEqeq TNeq TLte TGte T2Comma T3Comma TIdent TIdentSpace TNumber TString '{' '('
@@ -128,11 +128,41 @@ stat:
             if _, ok := $1.(*ast.FuncCallExpr); !ok {
                 // if this is just a simple ident, it can be executed as a function (anywhere)
                 // otherwise this expression should be evaluated and printed if in a repl
-                $$ = &ast.HalfStmt{Expr: $1}
-                $$.SetLine($1.Line())
+                // this isn't a return statement, because it needs to support bare function calls in the middle of a block
+                $$ = &ast.FuncCallStmt{Expr: &ast.FuncCallExpr{
+                    Func: &ast.IdentExpr{Value: "_fallback"},
+                    Args: []ast.Expr{$1},
+                }}
             } else {
               $$ = &ast.FuncCallStmt{Expr: $1}
               $$.SetLine($1.Line())
+            }
+        } |
+        TOn bareargs TDo block TEnd {
+            // used for `on step [start] [end] do end`-style hooks
+            // will be converted into `_on_hook("<keyword>", func() ... end, args...)`
+            var keyword ast.Expr
+            kw := $2[0]
+            switch v := kw.(type) {
+            case *ast.IdentExpr:
+                keyword = &ast.StringExpr{Value: v.Value}
+            case *ast.NumberExpr, *ast.StringExpr:
+                keyword = v
+            default:
+               yylex.(*Lexer).Error("parse error: first argument to `on` is number or identifier")
+            }
+            fn := &ast.FunctionExpr{
+                ParList: &ast.ParList{Names: []string{}},
+                Stmts: $4,
+            }
+            args := []ast.Expr{keyword, fn, &ast.NilExpr{}, &ast.NilExpr{}}
+            copy(args[2:], $2[1:])
+
+            $$ = &ast.FuncCallStmt{
+                Expr: &ast.FuncCallExpr{
+                    Func: &ast.IdentExpr{Value: "_on_hook"},
+                    Args: args,
+                },
             }
         } |
         TDo block TEnd {
@@ -206,7 +236,7 @@ stat:
         } |
         barecall {
             if _, ok := $1.(*ast.FuncCallExpr); !ok {
-               yylex.(*Lexer).Error("parse error 2")
+               yylex.(*Lexer).Error("parse error")
             } else {
               $$ = &ast.FuncCallStmt{Expr: $1}
               $$.SetLine($1.Line())
@@ -391,12 +421,10 @@ expr:
             $$.SetLine($1.Line())
         } | /* start bitwise */
         expr TShl expr {
-            fmt.Println("TSHL")
             $$ = &ast.ArithmeticOpExpr{Lhs: $1, Operator: "<<", Rhs: $3}
             $$.SetLine($1.Line())
         } |
         expr TShr expr {
-            fmt.Println("TSHR")
             $$ = &ast.ArithmeticOpExpr{Lhs: $1, Operator: ">>", Rhs: $3}
             $$.SetLine($1.Line())
         } |
