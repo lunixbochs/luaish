@@ -18,21 +18,23 @@ func (ls *LState) CheckAny(n int) LValue {
 }
 
 func (ls *LState) CheckInt(n int) int {
-	v := ls.Get(n)
-	if intv, ok := v.(LNumber); ok {
-		return int(intv)
-	}
-	ls.TypeError(n, LTNumber)
-	return 0
+	return int(ls.CheckNumber(n))
+}
+
+func (ls *LState) CheckInt32(n int) int32 {
+	return int32(ls.CheckNumber(n))
 }
 
 func (ls *LState) CheckInt64(n int) int64 {
-	v := ls.Get(n)
-	if intv, ok := v.(LNumber); ok {
-		return int64(intv)
-	}
-	ls.TypeError(n, LTNumber)
-	return 0
+	return int64(ls.CheckNumber(n))
+}
+
+func (ls *LState) CheckUint64(n int) uint64 {
+	return uint64(ls.CheckNumber(n))
+}
+
+func (ls *LState) CheckUint32(n int) uint32 {
+	return uint32(ls.CheckNumber(n))
 }
 
 func (ls *LState) CheckNumber(n int) LNumber {
