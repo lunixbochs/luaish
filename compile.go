@@ -1374,7 +1374,7 @@ func compileRelationalOpExprAux(context *funcContext, reg int, expr *ast.Relatio
 		code.AddABC(OP_LE, 0^flip, c, b, sline(expr))
 	case "==":
 		code.AddABC(OP_EQ, 0^flip, b, c, sline(expr))
-	case "~=":
+	case "!=":
 		code.AddABC(OP_EQ, 1^flip, b, c, sline(expr))
 	}
 	code.AddASbx(OP_JMP, 0, label, sline(expr))
