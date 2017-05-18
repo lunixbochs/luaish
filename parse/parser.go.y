@@ -235,12 +235,8 @@ stat:
             $$.SetLine($1.Pos.Line)
         } |
         barecall {
-            if _, ok := $1.(*ast.FuncCallExpr); !ok {
-               yylex.(*Lexer).Error("parse error")
-            } else {
-              $$ = &ast.FuncCallStmt{Expr: $1}
-              $$.SetLine($1.Line())
-            }
+            $$ = &ast.FuncCallStmt{Expr: $1}
+            $$.SetLine($1.Line())
 		}
 
 elseifs: 
@@ -261,7 +257,7 @@ laststat:
             $$ = &ast.ReturnStmt{Exprs:$2}
             $$.SetLine($1.Pos.Line)
         } |
-        TBreak  {
+        TBreak {
             $$ = &ast.BreakStmt{}
             $$.SetLine($1.Pos.Line)
         }
