@@ -303,7 +303,7 @@ redo:
 		switch lexer.Token.Type {
 		case TAnd, TBreak, TDo, TElse, TEnd, TOr, TReturn, TRepeat, TThen, TUntil:
 			fallthrough
-		case TIdent, TIdentSpace, TNumber, TString, '}', ')':
+		case TIdent, TIdentSpace, TNumber, TString, '}', ')', ']':
 			tok.Type = ';'
 			tok.Str = ";"
 			tok.Name = TokenName(int(tok.Type))
