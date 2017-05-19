@@ -619,11 +619,20 @@ fieldsep:
 %%
 
 func TokenName(c int) string {
-	if c >= TAnd && c-TAnd < len(yyToknames) {
-		if yyToknames[c-TAnd] != "" {
-			return yyToknames[c-TAnd]
-		}
-	}
+    start := -1
+    for i, v := range yyToknames {
+        if v == "TAnd" {
+            start = i
+            break
+        }
+    }
+    if start >= 0 {
+        if c >= TAnd && start+c-TAnd < len(yyToknames) {
+            if yyToknames[start+c-TAnd] != "" {
+                return yyToknames[start+c-TAnd]
+            }
+        }
+    }
     return string([]byte{byte(c)})
 }
 
