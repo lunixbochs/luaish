@@ -119,12 +119,12 @@ anyident:
 	  | TIdent { $$ = $1 }
 
 stat:
-        varlist '=' barecall {
-            $$ = &ast.AssignStmt{Lhs: $1, Rhs: []ast.Expr{$3}}
-            $$.SetLine($1[0].Line())
-        } |
         varlist '=' exprlist {
             $$ = &ast.AssignStmt{Lhs: $1, Rhs: $3}
+            $$.SetLine($1[0].Line())
+        } |
+        varlist '=' barecall {
+            $$ = &ast.AssignStmt{Lhs: $1, Rhs: []ast.Expr{$3}}
             $$.SetLine($1[0].Line())
         } |
         /* 'stat = functioncal' causes a reduce/reduce conflict */
@@ -133,9 +133,15 @@ stat:
                 // if this is just a simple ident, it can be executed as a function (anywhere)
                 // otherwise this expression should be evaluated and printed if in a repl
                 // this isn't a return statement, because it needs to support bare function calls in the middle of a block
+                args := []ast.Expr{$1}
+                if v, ok := $1.(*ast.IdentExpr); ok {
+                    args = []ast.Expr{
+                        &ast.StringExpr{Value: v.Value}, $1,
+                    }
+                }
                 $$ = &ast.FuncCallStmt{Expr: &ast.FuncCallExpr{
                     Func: &ast.IdentExpr{Value: "_fallback"},
-                    Args: []ast.Expr{$1},
+                    Args: args,
                 }}
             } else {
               $$ = &ast.FuncCallStmt{Expr: $1}
@@ -493,7 +499,7 @@ functioncall:
             $$ = &ast.FuncCallExpr{Func: $1, Args: $2}
             $$.SetLine($1.Line())
         } |
-        prefixexp ':' anyident args {
+        prefixexp ':' TIdent args {
             $$ = &ast.FuncCallExpr{Method: $3.Str, Receiver: $1, Args: $4}
             $$.SetLine($1.Line())
         }
