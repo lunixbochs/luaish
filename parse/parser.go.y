@@ -533,12 +533,6 @@ args:
                yylex.(*Lexer).TokenError($1, "ambiguous syntax (function call x new statement)")
             }
             $$ = $2
-        } |
-        tableconstructor {
-            $$ = []ast.Expr{$1}
-        } |
-        string {
-            $$ = []ast.Expr{$1}
         }
 
 function:
