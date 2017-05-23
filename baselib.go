@@ -88,7 +88,7 @@ func baseError(L *LState) int {
 func baseGetFEnv(L *LState) int {
 	var value LValue
 	if L.GetTop() == 0 {
-		value = LNumber(1)
+		value = LInt(1)
 	} else {
 		value = L.Get(1)
 	}
@@ -102,13 +102,12 @@ func baseGetFEnv(L *LState) int {
 		return 1
 	}
 
-	if number, ok := value.(LNumber); ok {
-		level := int(float64(number))
+	if level, ok := value.assertInt64(); ok {
 		if level <= 0 {
 			L.Push(L.Env)
 		} else {
 			cf := L.currentFrame
-			for i := 0; i < level && cf != nil; i++ {
+			for i := int64(0); i < level && cf != nil; i++ {
 				cf = cf.Parent
 			}
 			if cf == nil || cf.Fn.IsG {
@@ -138,8 +137,8 @@ func ipairsaux(L *LState) int {
 		return 0
 	} else {
 		L.Pop(1)
-		L.Push(LNumber(i))
-		L.Push(LNumber(i))
+		L.Push(LInt(i))
+		L.Push(LInt(i))
 		L.Push(v)
 		return 2
 	}
@@ -149,7 +148,7 @@ func baseIpairs(L *LState) int {
 	tb := L.CheckTable(1)
 	L.Push(L.Get(UpvalueIndex(1)))
 	L.Push(tb)
-	L.Push(LNumber(0))
+	L.Push(LInt(0))
 	return 3
 }
 
@@ -308,11 +307,18 @@ func baseRawSet(L *LState) int {
 }
 
 func baseSelect(L *LState) int {
-	L.CheckTypes(1, LTNumber, LTString)
+	L.CheckTypes(1, LTInt, LTFloat, LTString)
 	switch lv := L.Get(1).(type) {
-	case LNumber:
+	case LInt:
 		idx := int(lv)
-		num := L.reg.Top() - L.indexToReg(int(lv)) - 1
+		num := L.reg.Top() - L.indexToReg(idx) - 1
+		if idx < 0 {
+			num++
+		}
+		return num
+	case LFloat:
+		idx := int(lv)
+		num := L.reg.Top() - L.indexToReg(idx) - 1
 		if idx < 0 {
 			num++
 		}
@@ -321,7 +327,7 @@ func baseSelect(L *LState) int {
 		if string(lv) != "#" {
 			L.ArgError(1, "invalid string '"+string(lv)+"'")
 		}
-		L.Push(LNumber(L.GetTop() - 1))
+		L.Push(LInt(L.GetTop() - 1))
 		return 1
 	}
 	return 0
@@ -330,7 +336,7 @@ func baseSelect(L *LState) int {
 func baseSetFEnv(L *LState) int {
 	var value LValue
 	if L.GetTop() == 0 {
-		value = LNumber(1)
+		value = LInt(1)
 	} else {
 		value = L.Get(1)
 	}
@@ -346,15 +352,14 @@ func baseSetFEnv(L *LState) int {
 		}
 	}
 
-	if number, ok := value.(LNumber); ok {
-		level := int(float64(number))
+	if level, ok := value.assertInt64(); ok {
 		if level <= 0 {
 			L.Env = env
 			return 0
 		}
 
 		cf := L.currentFrame
-		for i := 0; i < level && cf != nil; i++ {
+		for i := int64(0); i < level && cf != nil; i++ {
 			cf = cf.Parent
 		}
 		if cf == nil || cf.Fn.IsG {
@@ -390,21 +395,21 @@ func baseSetMetatable(L *LState) int {
 func baseToNumber(L *LState) int {
 	base := L.OptInt(2, 10)
 	switch lv := L.CheckAny(1).(type) {
-	case LNumber:
+	case LInt, LFloat:
 		L.Push(lv)
 	case LString:
 		str := strings.Trim(string(lv), " \n\t")
 		if strings.Index(str, ".") > -1 {
-			if v, err := strconv.ParseFloat(str, LNumberBit); err != nil {
+			if v, err := strconv.ParseFloat(str, LFloatBit); err != nil {
 				L.Push(LNil)
 			} else {
-				L.Push(LNumber(v))
+				L.Push(LFloat(v))
 			}
 		} else {
-			if v, err := strconv.ParseInt(str, base, LNumberBit); err != nil {
+			if v, err := strconv.ParseInt(str, base, LIntBit); err != nil {
 				L.Push(LNil)
 			} else {
-				L.Push(LNumber(v))
+				L.Push(LInt(v))
 			}
 		}
 	default:

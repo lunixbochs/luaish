@@ -82,7 +82,7 @@ func (tb *LTable) Insert(i int, value LValue) {
 		return
 	}
 	if i <= 0 {
-		tb.RawSet(LNumber(i), value)
+		tb.RawSet(LInt(i), value)
 		return
 	}
 	i -= 1
@@ -132,12 +132,17 @@ func (tb *LTable) Remove(pos int) LValue {
 // if you already know the given LValue is a string or number.
 func (tb *LTable) RawSet(key LValue, value LValue) {
 	switch v := key.(type) {
-	case LNumber:
+	case LFloat:
 		if isArrayKey(v) {
+			tb.RawSet(LInt(v), value)
+			return
+		}
+	case LInt:
+		if v < LInt(MaxArrayIndex) {
+			index := int(v) - 1
 			if tb.array == nil {
 				tb.array = make([]LValue, 0, defaultArrayCap)
 			}
-			index := int(v) - 1
 			alen := len(tb.array)
 			switch {
 			case index == alen:
@@ -163,7 +168,7 @@ func (tb *LTable) RawSet(key LValue, value LValue) {
 // RawSetInt sets a given LValue at a position `key` without the __newindex metamethod.
 func (tb *LTable) RawSetInt(key int, value LValue) {
 	if key < 1 || key >= MaxArrayIndex {
-		tb.RawSetH(LNumber(key), value)
+		tb.RawSetH(LInt(key), value)
 		return
 	}
 	if tb.array == nil {
@@ -216,13 +221,18 @@ func (tb *LTable) RawSetH(key LValue, value LValue) {
 // RawGet returns an LValue associated with a given key without __index metamethod.
 func (tb *LTable) RawGet(key LValue) LValue {
 	switch v := key.(type) {
-	case LNumber:
-		if isArrayKey(v) {
-			if tb.array == nil {
+	case LInt:
+		if v < LInt(MaxArrayIndex) {
+			index := int(v) - 1
+			if tb.array == nil || index >= len(tb.array) {
 				return LNil
 			}
+			return tb.array[index]
+		}
+	case LFloat:
+		if isArrayKey(v) {
 			index := int(v) - 1
-			if index >= len(tb.array) {
+			if tb.array == nil || index >= len(tb.array) {
 				return LNil
 			}
 			return tb.array[index]
@@ -293,7 +303,7 @@ func (tb *LTable) ForEach(cb func(LValue, LValue)) {
 	if tb.array != nil {
 		for i, v := range tb.array {
 			if v != LNil {
-				cb(LNumber(i+1), v)
+				cb(LInt(i+1), v)
 			}
 		}
 	}
@@ -320,7 +330,7 @@ func (tb *LTable) Next(key LValue) (LValue, LValue) {
 	if key == LNil {
 		tb.keys = nil
 		tb.k2i = nil
-		key = LNumber(0)
+		key = LInt(0)
 		init = true
 	}
 
@@ -352,13 +362,13 @@ func (tb *LTable) Next(key LValue) (LValue, LValue) {
 		}
 	}
 
-	if init || key != LNumber(0) {
-		if kv, ok := key.(LNumber); ok && isInteger(kv) && int(kv) >= 0 {
+	if init || key != LInt(0) {
+		if kv, ok := key.(LInt); ok && int(kv) >= 0 {
 			index := int(kv)
 			if tb.array != nil {
 				for ; index < len(tb.array); index++ {
 					if v := tb.array[index]; v != LNil {
-						return LNumber(index + 1), v
+						return LInt(index + 1), v
 					}
 				}
 			}

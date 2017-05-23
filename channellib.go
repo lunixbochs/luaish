@@ -107,7 +107,7 @@ func channelSelect(L *LState) int {
 			L.Call(0, 0)
 		}
 	}
-	L.Push(LNumber(pos + 1))
+	L.Push(LInt(pos + 1))
 	L.Push(lv)
 	if rok {
 		L.Push(LTrue)

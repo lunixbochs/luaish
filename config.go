@@ -11,24 +11,23 @@ var CallStackSize = 256
 var MaxTableGetLoop = 100
 var MaxArrayIndex = 67108864
 
-type LNumber float64
+type LInt int64
 
-const LNumberBit = 64
-const LNumberScanFormat = "%f"
+const LIntBit = 64
+const LIntScanFormat = "%d"
+
+type LFloat float64
+
+const LFloatBit = 64
+const LFloatScanFormat = "%f"
 
 var LuaPath = "LUA_PATH"
-var LuaLDir string
-var LuaPathDefault string
 var LuaOS string
 
 func init() {
 	if os.PathSeparator == '/' { // unix-like
 		LuaOS = "unix"
-		LuaLDir = "/usr/local/share/lua/5.1"
-		LuaPathDefault = "./?.lua;" + LuaLDir + "/?.lua;" + LuaLDir + "/?/init.lua"
 	} else { // windows
 		LuaOS = "windows"
-		LuaLDir = "!\\lua"
-		LuaPathDefault = ".\\?.lua;" + LuaLDir + "\\?.lua;" + LuaLDir + "\\?\\init.lua"
 	}
 }

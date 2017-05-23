@@ -30,7 +30,7 @@ func debugGetFEnv(L *LState) int {
 }
 
 func debugGetInfo(L *LState) int {
-	L.CheckTypes(1, LTFunction, LTNumber)
+	L.CheckTypes(1, LTFunction, LTFloat, LTInt)
 	arg1 := L.Get(1)
 	what := L.OptString(2, "Slunf")
 	var dbg *Debug
@@ -41,8 +41,9 @@ func debugGetInfo(L *LState) int {
 	case *LFunction:
 		dbg = &Debug{}
 		fn, err = L.GetInfo(">"+what, dbg, lv)
-	case LNumber:
-		dbg, ok = L.GetStack(int(lv))
+	case LFloat, LInt:
+		idx, _ := arg1.assertInt64()
+		dbg, ok = L.GetStack(int(idx))
 		if !ok {
 			L.Push(LNil)
 			return 1
@@ -62,10 +63,10 @@ func debugGetInfo(L *LState) int {
 	}
 	tbl.RawSetString("what", LString(dbg.What))
 	tbl.RawSetString("source", LString(dbg.Source))
-	tbl.RawSetString("currentline", LNumber(dbg.CurrentLine))
-	tbl.RawSetString("nups", LNumber(dbg.NUpvalues))
-	tbl.RawSetString("linedefined", LNumber(dbg.LineDefined))
-	tbl.RawSetString("lastlinedefined", LNumber(dbg.LastLineDefined))
+	tbl.RawSetString("currentline", LInt(dbg.CurrentLine))
+	tbl.RawSetString("nups", LInt(dbg.NUpvalues))
+	tbl.RawSetString("linedefined", LInt(dbg.LineDefined))
+	tbl.RawSetString("lastlinedefined", LInt(dbg.LastLineDefined))
 	tbl.RawSetString("func", fn)
 	L.Push(tbl)
 	return 1

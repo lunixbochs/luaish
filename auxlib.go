@@ -18,31 +18,36 @@ func (ls *LState) CheckAny(n int) LValue {
 }
 
 func (ls *LState) CheckInt(n int) int {
-	return int(ls.CheckNumber(n))
+	return int(ls.CheckInt64(n))
 }
 
 func (ls *LState) CheckInt32(n int) int32 {
-	return int32(ls.CheckNumber(n))
+	return int32(ls.CheckInt(n))
 }
 
 func (ls *LState) CheckInt64(n int) int64 {
-	return int64(ls.CheckNumber(n))
+	v := ls.Get(n)
+	if lv, ok := v.assertInt64(); ok {
+		return lv
+	}
+	ls.TypeError(n, LTInt)
+	return 0
 }
 
 func (ls *LState) CheckUint64(n int) uint64 {
-	return uint64(ls.CheckNumber(n))
+	return uint64(ls.CheckInt(n))
 }
 
 func (ls *LState) CheckUint32(n int) uint32 {
-	return uint32(ls.CheckNumber(n))
+	return uint32(ls.CheckInt(n))
 }
 
-func (ls *LState) CheckNumber(n int) LNumber {
+func (ls *LState) CheckFloat(n int) float64 {
 	v := ls.Get(n)
-	if lv, ok := v.(LNumber); ok {
+	if lv, ok := v.assertFloat64(); ok {
 		return lv
 	}
-	ls.TypeError(n, LTNumber)
+	ls.TypeError(n, LTFloat)
 	return 0
 }
 
@@ -137,15 +142,7 @@ func (ls *LState) CheckOption(n int, options []string) int {
 /* optType {{{ */
 
 func (ls *LState) OptInt(n int, d int) int {
-	v := ls.Get(n)
-	if v == LNil {
-		return d
-	}
-	if intv, ok := v.(LNumber); ok {
-		return int(intv)
-	}
-	ls.TypeError(n, LTNumber)
-	return 0
+	return int(ls.OptInt64(n, int64(d)))
 }
 
 func (ls *LState) OptInt64(n int, d int64) int64 {
@@ -153,22 +150,22 @@ func (ls *LState) OptInt64(n int, d int64) int64 {
 	if v == LNil {
 		return d
 	}
-	if intv, ok := v.(LNumber); ok {
-		return int64(intv)
+	if intv, ok := v.assertInt64(); ok {
+		return intv
 	}
-	ls.TypeError(n, LTNumber)
+	ls.TypeError(n, LTInt)
 	return 0
 }
 
-func (ls *LState) OptNumber(n int, d LNumber) LNumber {
+func (ls *LState) OptFloat(n int, d LFloat) LFloat {
 	v := ls.Get(n)
 	if v == LNil {
 		return d
 	}
-	if lv, ok := v.(LNumber); ok {
-		return lv
+	if lv, ok := v.assertFloat64(); ok {
+		return LFloat(lv)
 	}
-	ls.TypeError(n, LTNumber)
+	ls.TypeError(n, LTFloat)
 	return 0
 }
 

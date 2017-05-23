@@ -15,7 +15,7 @@ func init() {
 
 func getIntField(L *LState, tb *LTable, key string, v int) int {
 	ret := tb.RawGetString(key)
-	if ln, ok := ret.(LNumber); ok {
+	if ln, ok := ret.assertInt64(); ok {
 		return int(ln)
 	}
 	return v
@@ -51,12 +51,12 @@ var osFuncs = map[string]LGFunction{
 }
 
 func osClock(L *LState) int {
-	L.Push(LNumber(float64(time.Now().Sub(startedAt)) / float64(time.Second)))
+	L.Push(LFloat(float64(time.Now().Sub(startedAt)) / float64(time.Second)))
 	return 1
 }
 
 func osDiffTime(L *LState) int {
-	L.Push(LNumber(L.CheckInt64(1) - L.CheckInt64(2)))
+	L.Push(LInt(L.CheckInt64(1) - L.CheckInt64(2)))
 	return 1
 }
 
@@ -67,16 +67,16 @@ func osExecute(L *LState) int {
 	args = append([]string{cmd}, args...)
 	process, err := os.StartProcess(cmd, args, &procAttr)
 	if err != nil {
-		L.Push(LNumber(1))
+		L.Push(LInt(1))
 		return 1
 	}
 
 	ps, err := process.Wait()
 	if err != nil || !ps.Success() {
-		L.Push(LNumber(1))
+		L.Push(LInt(1))
 		return 1
 	}
-	L.Push(LNumber(0))
+	L.Push(LInt(0))
 	return 1
 }
 
@@ -100,15 +100,15 @@ func osDate(L *LState) int {
 		}
 		if strings.HasPrefix(cfmt, "*t") {
 			ret := L.NewTable()
-			ret.RawSetString("year", LNumber(t.Year()))
-			ret.RawSetString("month", LNumber(t.Month()))
-			ret.RawSetString("day", LNumber(t.Day()))
-			ret.RawSetString("hour", LNumber(t.Hour()))
-			ret.RawSetString("min", LNumber(t.Minute()))
-			ret.RawSetString("sec", LNumber(t.Second()))
-			ret.RawSetString("wday", LNumber(t.Weekday()))
+			ret.RawSetString("year", LInt(t.Year()))
+			ret.RawSetString("month", LInt(t.Month()))
+			ret.RawSetString("day", LInt(t.Day()))
+			ret.RawSetString("hour", LInt(t.Hour()))
+			ret.RawSetString("min", LInt(t.Minute()))
+			ret.RawSetString("sec", LInt(t.Second()))
+			ret.RawSetString("wday", LInt(t.Weekday()))
 			// TODO yday & dst
-			ret.RawSetString("yday", LNumber(0))
+			ret.RawSetString("yday", LInt(0))
 			ret.RawSetString("isdst", LFalse)
 			L.Push(ret)
 			return 1
@@ -172,7 +172,7 @@ func osSetEnv(L *LState) int {
 
 func osTime(L *LState) int {
 	if L.GetTop() == 0 {
-		L.Push(LNumber(time.Now().Unix()))
+		L.Push(LInt(time.Now().Unix()))
 	} else {
 		tbl := L.CheckTable(1)
 		sec := getIntField(L, tbl, "sec", 0)
@@ -187,7 +187,7 @@ func osTime(L *LState) int {
 		if false {
 			print(isdst)
 		}
-		L.Push(LNumber(t.Unix()))
+		L.Push(LInt(t.Unix()))
 	}
 	return 1
 }

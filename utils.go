@@ -130,29 +130,32 @@ func strftime(t time.Time, cfmt string) string {
 	return sc.String()
 }
 
-func isInteger(v LNumber) bool {
+func isNumber(v LValue) bool {
+	return v.Type() == LTFloat || v.Type() == LTInt
+}
+
+func isInteger(v LFloat) bool {
 	return float64(v) == float64(int64(v))
 	//_, frac := math.Modf(float64(v))
 	//return frac == 0.0
 }
 
-func isArrayKey(v LNumber) bool {
-	return isInteger(v) && v < LNumber(int((^uint(0))>>1)) && v > LNumber(0) && v < LNumber(MaxArrayIndex)
+func isArrayKey(v LFloat) bool {
+	return isInteger(v) && v < LFloat(int((^uint(0))>>1)) && v > LFloat(0) && v < LFloat(MaxArrayIndex)
 }
 
-func parseNumber(number string) (LNumber, error) {
-	var value LNumber
+func parseNumber(number string) (LValue, error) {
 	number = strings.Trim(number, " \t\n")
-	if v, err := strconv.ParseInt(number, 0, LNumberBit); err != nil {
-		if v2, err2 := strconv.ParseFloat(number, LNumberBit); err2 != nil {
-			return LNumber(0), err2
+	if v, err := strconv.ParseInt(number, 0, LIntBit); err != nil {
+		if v2, err2 := strconv.ParseFloat(number, LFloatBit); err2 != nil {
+			return LFloat(0), err2
 		} else {
-			value = LNumber(v2)
+			return LFloat(v2), nil
 		}
 	} else {
-		value = LNumber(v)
+		return LInt(v), nil
 	}
-	return value, nil
+	return LInt(0), nil
 }
 
 func popenArgs(arg string) (string, []string) {
@@ -230,29 +233,6 @@ func int2Fb(val int) int {
 		return x
 	}
 	return ((e + 1) << 3) | (x - 8)
-}
-
-func strCmp(s1, s2 string) int {
-	len1 := len(s1)
-	len2 := len(s2)
-	for i := 0; ; i++ {
-		c1 := -1
-		if i < len1 {
-			c1 = int(s1[i])
-		}
-		c2 := -1
-		if i != len2 {
-			c2 = int(s2[i])
-		}
-		switch {
-		case c1 < c2:
-			return -1
-		case c1 > c2:
-			return +1
-		case c1 < 0:
-			return 0
-		}
-	}
 }
 
 func unsafeFastStringToReadOnlyBytes(s string) []byte {

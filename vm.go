@@ -385,27 +385,6 @@ func init() {
 		opArith, // OP_DIV
 		opArith, // OP_MOD
 		opArith, // OP_POW
-		// bitwise ops
-		func(L *LState, inst uint32, baseFrame *callFrame) int { // OP_BNEG
-			reg := L.reg
-			cf := L.currentFrame
-			lbase := cf.LocalBase
-			A := int(inst>>18) & 0xff //GETA
-			RA := lbase + A
-			B := int(inst & 0x1ff) //GETB
-			unaryv := L.rkValue(B)
-			if nm, ok := unaryv.(LNumber); ok {
-				reg.SetNumber(RA, -nm)
-			} else {
-				L.RaiseError("__neg unimplemented")
-			}
-			return 0
-		},
-		opArith, // OP_XOR
-		opArith, // OP_OR
-		opArith, // OP_AND
-		opArith, // OP_SHL
-		opArith, // OP_SHR
 		func(L *LState, inst uint32, baseframe *callFrame) int { //OP_UNM
 			reg := L.reg
 			cf := L.currentFrame
@@ -414,9 +393,12 @@ func init() {
 			RA := lbase + A
 			B := int(inst & 0x1ff) //GETB
 			unaryv := L.rkValue(B)
-			if nm, ok := unaryv.(LNumber); ok {
-				reg.SetNumber(RA, -nm)
-			} else {
+			switch nm := unaryv.(type) {
+			case LFloat:
+				reg.Set(RA, -nm)
+			case LInt:
+				reg.Set(RA, -nm)
+			default:
 				op := L.metaOp1(unaryv, "__unm")
 				if op.Type() == LTFunction {
 					reg.Push(op)
@@ -425,7 +407,12 @@ func init() {
 					reg.Set(RA, reg.Pop())
 				} else if str, ok1 := unaryv.(LString); ok1 {
 					if num, err := parseNumber(string(str)); err == nil {
-						reg.Set(RA, -num)
+						switch lv := num.(type) {
+						case LInt:
+							reg.Set(RA, -lv)
+						case LFloat:
+							reg.Set(RA, -lv)
+						}
 					} else {
 						L.RaiseError("__unm undefined")
 					}
@@ -458,7 +445,7 @@ func init() {
 			B := int(inst & 0x1ff) //GETB
 			switch lv := L.rkValue(B).(type) {
 			case LString:
-				reg.SetNumber(RA, LNumber(len(lv)))
+				reg.Set(RA, LInt(len(lv)))
 			default:
 				op := L.metaOp1(lv, "__len")
 				if op.Type() == LTFunction {
@@ -467,13 +454,34 @@ func init() {
 					L.Call(1, 1)
 					reg.Set(RA, reg.Pop())
 				} else if lv.Type() == LTTable {
-					reg.SetNumber(RA, LNumber(lv.(*LTable).Len()))
+					reg.Set(RA, LInt(lv.(*LTable).Len()))
 				} else {
 					L.RaiseError("__len undefined")
 				}
 			}
 			return 0
 		},
+		// bitwise ops
+		func(L *LState, inst uint32, baseFrame *callFrame) int { // OP_BNOT
+			reg := L.reg
+			cf := L.currentFrame
+			lbase := cf.LocalBase
+			A := int(inst>>18) & 0xff //GETA
+			RA := lbase + A
+			B := int(inst & 0x1ff) //GETB
+			unaryv := L.rkValue(B)
+			if nm, ok := unaryv.(LInt); ok {
+				reg.Set(RA, LInt(^uint64(nm)))
+			} else {
+				L.RaiseError("__neg unimplemented")
+			}
+			return 0
+		},
+		opArith, // OP_XOR
+		opArith, // OP_OR
+		opArith, // OP_AND
+		opArith, // OP_SHL
+		opArith, // OP_SHR
 		func(L *LState, inst uint32, baseframe *callFrame) int { //OP_CONCAT
 			reg := L.reg
 			cf := L.currentFrame
@@ -544,7 +552,7 @@ func init() {
 				}
 				switch lhs.Type() {
 				case LTString:
-					ret = strCmp(string(lhs.(LString)), string(rhs.(LString))) <= 0
+					ret = string(lhs.(LString)) <= string(rhs.(LString))
 				default:
 					switch objectRational(L, lhs, rhs, "__le") {
 					case 1:
@@ -702,7 +710,7 @@ func init() {
 									for i := 0; i < nvarargs; i++ {
 										argtb.RawSetInt(i+1, ls.reg.Get(cf.LocalBase+np+i))
 									}
-									argtb.RawSetString("n", LNumber(nvarargs))
+									argtb.RawSetString("n", LInt(nvarargs))
 									//ls.reg.Set(cf.LocalBase+nargs+np, argtb)
 									ls.reg.array[cf.LocalBase+nargs+np] = argtb
 								} else {
@@ -860,7 +868,7 @@ func init() {
 									for i := 0; i < nvarargs; i++ {
 										argtb.RawSetInt(i+1, ls.reg.Get(cf.LocalBase+np+i))
 									}
-									argtb.RawSetString("n", LNumber(nvarargs))
+									argtb.RawSetString("n", LInt(nvarargs))
 									//ls.reg.Set(cf.LocalBase+nargs+np, argtb)
 									ls.reg.array[cf.LocalBase+nargs+np] = argtb
 								} else {
@@ -1020,11 +1028,11 @@ func init() {
 				if limit, ok2 := reg.Get(RA + 1).assertFloat64(); ok2 {
 					if step, ok3 := reg.Get(RA + 2).assertFloat64(); ok3 {
 						init += step
-						reg.SetNumber(RA, LNumber(init))
+						reg.Set(RA, LInt(init))
 						if (step > 0 && init <= limit) || (step <= 0 && init >= limit) {
 							Sbx := int(inst&0x3ffff) - opMaxArgSbx //GETSBX
 							cf.Pc += Sbx
-							reg.SetNumber(RA+3, LNumber(init))
+							reg.Set(RA+3, LInt(init))
 						} else {
 							reg.SetTop(RA + 1)
 						}
@@ -1048,7 +1056,7 @@ func init() {
 			Sbx := int(inst&0x3ffff) - opMaxArgSbx //GETSBX
 			if init, ok1 := reg.Get(RA).assertFloat64(); ok1 {
 				if step, ok2 := reg.Get(RA + 2).assertFloat64(); ok2 {
-					reg.SetNumber(RA, LNumber(init-step))
+					reg.Set(RA, LInt(init-step))
 				} else {
 					L.RaiseError("for statement step must be a number")
 				}
@@ -1204,56 +1212,91 @@ func opArith(L *LState, inst uint32, baseframe *callFrame) int { //OP_ADD, OP_SU
 	C := int(inst>>9) & 0x1ff //GETC
 	lhs := L.rkValue(B)
 	rhs := L.rkValue(C)
-	v1, ok1 := lhs.assertFloat64()
-	v2, ok2 := rhs.assertFloat64()
-	if ok1 && ok2 {
-		reg.SetNumber(RA, numberArith(L, opcode, LNumber(v1), LNumber(v2)))
+	if isNumber(lhs) && isNumber(rhs) {
+		reg.Set(RA, numberArith(L, opcode, lhs, rhs))
 	} else {
 		reg.Set(RA, objectArith(L, opcode, lhs, rhs))
 	}
 	return 0
 }
 
-func luaModulo(lhs, rhs LNumber) LNumber {
+// TODO: LInt
+func luaModulo(lhs, rhs LFloat) LFloat {
 	flhs := float64(lhs)
 	frhs := float64(rhs)
 	v := math.Mod(flhs, frhs)
 	if flhs < 0 || frhs < 0 && !(flhs < 0 && frhs < 0) {
 		v += frhs
 	}
-	return LNumber(v)
+	return LFloat(v)
 }
 
-func numberArith(L *LState, opcode int, lhs, rhs LNumber) LNumber {
+func numberArith(L *LState, opcode int, lhs, rhs LValue) LValue {
+	// autopromote to float
+	lhf, lhf_ok := lhs.(LFloat)
+	rhf, rhf_ok := lhs.(LFloat)
+	if lhf_ok || rhf_ok {
+		switch opcode {
+		case OP_ADD:
+			return lhf + rhf
+		case OP_SUB:
+			return lhf - rhf
+		case OP_MUL:
+			return lhf * rhf
+		case OP_DIV:
+			return lhf / rhf
+		case OP_MOD:
+			return luaModulo(lhf, rhf)
+		case OP_POW:
+			flhs := float64(lhf)
+			frhs := float64(rhf)
+			return LFloat(math.Pow(flhs, frhs))
+		default:
+			L.RaiseError("unsupported float arithmetic operation")
+			return LNil
+		}
+	}
+	lhi, lok := lhs.assertInt64()
+	rhi, rok := rhs.assertInt64()
+	if !lok || !rok {
+		L.RaiseError("unsupported arithmetic operand")
+		return LNil
+	}
 	switch opcode {
 	case OP_ADD:
-		return lhs + rhs
+		return LInt(lhi + rhi)
 	case OP_SUB:
-		return lhs - rhs
+		return LInt(lhi - rhi)
 	case OP_MUL:
-		return lhs * rhs
+		return LInt(lhi * rhi)
 	case OP_DIV:
-		return lhs / rhs
+		return LInt(lhi / rhi)
 	case OP_MOD:
-		return luaModulo(lhs, rhs)
+		v := lhi % rhi
+		if lhi < 0 || rhi < 0 && !(lhi < 0 && rhi < 0) {
+			v += rhi
+		}
+		return LInt(v)
 	case OP_POW:
-		flhs := float64(lhs)
-		frhs := float64(rhs)
-		return LNumber(math.Pow(flhs, frhs))
+		flhs := float64(lhi)
+		frhs := float64(rhi)
+		return LFloat(math.Pow(flhs, frhs))
 	// bitwise ops
 	case OP_XOR:
-		return LNumber(uint32(lhs) ^ uint32(rhs))
+		return LInt(uint64(lhi) ^ uint64(rhi))
 	case OP_OR:
-		return LNumber(uint32(lhs) | uint32(rhs))
+		return LInt(uint64(lhi) | uint64(rhi))
 	case OP_AND:
-		return LNumber(uint32(lhs) & uint32(rhs))
+		return LInt(uint64(lhi) & uint64(rhi))
 	case OP_SHL:
-		return LNumber(uint32(lhs) << uint32(rhs))
+		return LInt(uint64(lhi) << uint64(rhi))
 	case OP_SHR:
-		return LNumber(uint32(lhs) >> uint32(rhs))
+		return LInt(uint64(lhi) >> uint64(rhi))
+	default:
+		L.RaiseError("unsupported integer arithmetic operation")
+		return LNil
 	}
-	panic("should not reach here")
-	return LNumber(0)
+	return LInt(0)
 }
 
 func objectArith(L *LState, opcode int, lhs, rhs LValue) LValue {
@@ -1273,7 +1316,7 @@ func objectArith(L *LState, opcode int, lhs, rhs LValue) LValue {
 		event = "__pow"
 
 	// bitwise ops
-	case OP_BNEG:
+	case OP_BNOT:
 		event = "__bnot"
 	case OP_XOR:
 		event = "__bxor"
@@ -1306,7 +1349,7 @@ func objectArith(L *LState, opcode int, lhs, rhs LValue) LValue {
 	}
 	if v1, ok1 := lhs.assertFloat64(); ok1 {
 		if v2, ok2 := rhs.assertFloat64(); ok2 {
-			return numberArith(L, opcode, LNumber(v1), LNumber(v2))
+			return numberArith(L, opcode, LFloat(v1), LFloat(v2))
 		}
 	}
 	L.RaiseError(fmt.Sprintf("cannot perform %v operation between %v and %v",
@@ -1367,7 +1410,7 @@ func lessThan(L *LState, lhs, rhs LValue) bool {
 	ret := false
 	switch lhs.Type() {
 	case LTString:
-		ret = strCmp(string(lhs.(LString)), string(rhs.(LString))) < 0
+		ret = string(lhs.(LString)) < string(rhs.(LString))
 	default:
 		ret = objectRationalWithError(L, lhs, rhs, "__lt")
 	}
@@ -1375,6 +1418,7 @@ func lessThan(L *LState, lhs, rhs LValue) bool {
 }
 
 func equals(L *LState, lhs, rhs LValue, raw bool) bool {
+	// TODO: LInt - comparing int to float?
 	if lhs.Type() != rhs.Type() {
 		return false
 	}
@@ -1383,7 +1427,11 @@ func equals(L *LState, lhs, rhs LValue, raw bool) bool {
 	switch lhs.Type() {
 	case LTNil:
 		ret = true
-	case LTNumber:
+	case LTInt:
+		v1, _ := lhs.assertInt64()
+		v2, _ := lhs.assertInt64()
+		ret = v1 == v2
+	case LTFloat:
 		v1, _ := lhs.assertFloat64()
 		v2, _ := rhs.assertFloat64()
 		ret = v1 == v2

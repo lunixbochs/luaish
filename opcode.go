@@ -68,7 +68,7 @@ const (
 	OP_NOT /*       A B     R(A) := not R(B)                                */
 	OP_LEN /*       A B     R(A) := length of R(B)                          */
 
-	OP_BNEG // A B     R(A) := ~R(B)
+	OP_BNOT // A B     R(A) := ~R(B)
 	OP_XOR  // A B C   R(A) := R(B) ^ R(C)
 	OP_OR   // A B C   R(A) := R(B) | R(C)
 	OP_AND  // A B C   R(A) := R(B) & R(C)

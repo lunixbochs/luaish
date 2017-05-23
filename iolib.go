@@ -151,7 +151,7 @@ func fileIsWritable(L *LState, file *lFile) int {
 	if file.writer == nil {
 		L.Push(LNil)
 		L.Push(LString(fmt.Sprintf("%s is opened for only reading.", file.Name())))
-		L.Push(LNumber(1)) // C-Lua compatibility: Original Lua pushes errno to the stack
+		L.Push(LInt(1)) // C-Lua compatibility: Original Lua pushes errno to the stack
 		return 3
 	}
 	return 0
@@ -161,7 +161,7 @@ func fileIsReadable(L *LState, file *lFile) int {
 	if file.reader == nil {
 		L.Push(LNil)
 		L.Push(LString(fmt.Sprintf("%s is opened for only writing.", file.Name())))
-		L.Push(LNumber(1)) // C-Lua compatibility: Original Lua pushes errno to the stack
+		L.Push(LInt(1)) // C-Lua compatibility: Original Lua pushes errno to the stack
 		return 3
 	}
 	return 0
@@ -239,7 +239,7 @@ func fileWriteAux(L *LState, file *lFile, idx int) int {
 	out := file.writer
 	var err error
 	for i := idx; i <= top; i++ {
-		L.CheckTypes(i, LTNumber, LTString)
+		L.CheckTypes(i, LTInt, LTFloat, LTString)
 		s := LVAsString(L.Get(i))
 		if _, err = out.Write(unsafeFastStringToReadOnlyBytes(s)); err != nil {
 			goto errreturn
@@ -254,7 +254,7 @@ errreturn:
 	file.AbandonReadBuffer()
 	L.Push(LNil)
 	L.Push(LString(err.Error()))
-	L.Push(LNumber(1)) // C-Lua compatibility: Original Lua pushes errno to the stack
+	L.Push(LInt(1)) // C-Lua compatibility: Original Lua pushes errno to the stack
 	return 3
 }
 
@@ -291,7 +291,7 @@ func fileCloseAux(L *LState, file *lFile) int {
 		} else {
 			exitStatus = 0
 		}
-		L.Push(LNumber(exitStatus))
+		L.Push(LInt(exitStatus))
 		return 1
 	}
 
@@ -329,8 +329,8 @@ func fileReadAux(L *LState, file *lFile, idx int) int {
 	top := L.GetTop()
 	for i := idx; i <= top; i++ {
 		switch lv := L.Get(i).(type) {
-		case LNumber:
-			size := int64(lv)
+		case LInt, LFloat:
+			size, _ := lv.assertInt64()
 			if size == 0 {
 				_, err = file.reader.ReadByte()
 				if err == io.EOF {
@@ -358,8 +358,8 @@ func fileReadAux(L *LState, file *lFile, idx int) int {
 			for _, opt := range options[1:] {
 				switch opt {
 				case 'n':
-					var v LNumber
-					_, err = fmt.Fscanf(file.reader, LNumberScanFormat, &v)
+					var v LFloat
+					_, err = fmt.Fscanf(file.reader, LFloatScanFormat, &v)
 					if err == io.EOF {
 						L.Push(LNil)
 						goto normalreturn
@@ -420,9 +420,9 @@ func fileSeek(L *LState) int {
 	top := L.GetTop()
 	if top == 1 {
 		L.Push(LString("cur"))
-		L.Push(LNumber(0))
+		L.Push(LInt(0))
 	} else if top == 2 {
-		L.Push(LNumber(0))
+		L.Push(LInt(0))
 	}
 
 	var pos int64
@@ -438,7 +438,7 @@ func fileSeek(L *LState) int {
 		goto errreturn
 	}
 
-	L.Push(LNumber(pos))
+	L.Push(LInt(pos))
 	return 1
 
 errreturn:
@@ -641,7 +641,7 @@ func ioOpenFile(L *LState) int {
 	if err != nil {
 		L.Push(LNil)
 		L.Push(LString(err.Error()))
-		L.Push(LNumber(1)) // C-Lua compatibility: Original Lua pushes errno to the stack
+		L.Push(LInt(1)) // C-Lua compatibility: Original Lua pushes errno to the stack
 		return 3
 	}
 	L.Push(file)

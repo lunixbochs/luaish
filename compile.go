@@ -112,19 +112,6 @@ func isVarArgReturnExpr(expr ast.Expr) bool {
 	return false
 }
 
-func lnumberValue(expr ast.Expr) (LNumber, bool) {
-	if ex, ok := expr.(*ast.NumberExpr); ok {
-		lv, err := parseNumber(ex.Value)
-		if err != nil {
-			lv = LNumber(math.NaN())
-		}
-		return lv, true
-	} else if ex, ok := expr.(*constLValueExpr); ok {
-		return ex.Value.(LNumber), true
-	}
-	return 0, false
-}
-
 /* utilities }}} */
 
 type CompileError struct { // {{{
@@ -954,7 +941,7 @@ func compileExpr(context *funcContext, reg int, expr ast.Expr, ec *expcontext) i
 	case *ast.NumberExpr:
 		num, err := parseNumber(ex.Value)
 		if err != nil {
-			num = LNumber(math.NaN())
+			num = LFloat(math.NaN())
 		}
 		code.AddABx(OP_LOADK, sreg, context.ConstIndex(num), sline(ex))
 		return sused
@@ -1067,66 +1054,6 @@ func compileExprWithKMVPropagation(context *funcContext, expr ast.Expr, reg *int
 
 func compileExprWithMVPropagation(context *funcContext, expr ast.Expr, reg *int, save *int) { // {{{
 	compileExprWithPropagation(context, expr, reg, save, context.Code.PropagateMV)
-} // }}}
-
-func constFold(exp ast.Expr) ast.Expr { // {{{
-	switch expr := exp.(type) {
-	case *ast.ArithmeticOpExpr:
-		lvalue, lisconst := lnumberValue(expr.Lhs)
-		rvalue, risconst := lnumberValue(expr.Rhs)
-		if lisconst && risconst {
-			switch expr.Operator {
-			case "+":
-				return &constLValueExpr{Value: lvalue + rvalue}
-			case "-":
-				return &constLValueExpr{Value: lvalue - rvalue}
-			case "*":
-				return &constLValueExpr{Value: lvalue * rvalue}
-			case "/":
-				return &constLValueExpr{Value: lvalue / rvalue}
-			case "%":
-				return &constLValueExpr{Value: luaModulo(lvalue, rvalue)}
-			case "**":
-				return &constLValueExpr{Value: LNumber(math.Pow(float64(lvalue), float64(rvalue)))}
-
-			// bitwise ops
-			// FIXME: 64-bit support
-			case "^":
-				return &constLValueExpr{Value: LNumber(uint32(lvalue) ^ uint32(rvalue))}
-			case "|":
-				return &constLValueExpr{Value: LNumber(uint32(lvalue) | uint32(rvalue))}
-			case "&":
-				return &constLValueExpr{Value: LNumber(uint32(lvalue) & uint32(rvalue))}
-			case "<<":
-				return &constLValueExpr{Value: LNumber(uint32(lvalue) << uint32(rvalue))}
-			case ">>":
-				return &constLValueExpr{Value: LNumber(uint32(lvalue) >> uint32(rvalue))}
-			default:
-				panic(fmt.Sprintf("unknown binop: %v", expr.Operator))
-			}
-		} else {
-			retexpr := *expr
-			retexpr.Lhs = constFold(expr.Lhs)
-			retexpr.Rhs = constFold(expr.Rhs)
-			return &retexpr
-		}
-	case *ast.UnaryMinusOpExpr:
-		expr.Expr = constFold(expr.Expr)
-		if value, ok := lnumberValue(expr.Expr); ok {
-			return &constLValueExpr{Value: LNumber(-value)}
-		}
-		return expr
-	case *ast.UnaryNegateOpExpr:
-		expr.Expr = constFold(expr.Expr)
-		if value, ok := lnumberValue(expr.Expr); ok {
-			return &constLValueExpr{Value: LNumber(^uint32(value))}
-		}
-		return expr
-	default:
-
-		return exp
-	}
-	return exp
 } // }}}
 
 func compileFunctionExpr(context *funcContext, funcexpr *ast.FunctionExpr, ec *expcontext) { // {{{
@@ -1243,13 +1170,6 @@ func compileTableExpr(context *funcContext, reg int, ex *ast.TableExpr, ec *expc
 } // }}}
 
 func compileArithmeticOpExpr(context *funcContext, reg int, expr *ast.ArithmeticOpExpr, ec *expcontext) { // {{{
-	exp := constFold(expr)
-	if ex, ok := exp.(*constLValueExpr); ok {
-		exp.SetLine(sline(expr))
-		compileExpr(context, reg, ex, ec)
-		return
-	}
-	expr, _ = exp.(*ast.ArithmeticOpExpr)
 	a := savereg(ec, reg)
 	b := reg
 	compileExprWithKMVPropagation(context, expr.Lhs, &reg, &b)
@@ -1273,7 +1193,7 @@ func compileArithmeticOpExpr(context *funcContext, reg int, expr *ast.Arithmetic
 
 	// bitwise ops
 	case "~":
-		op = OP_BNEG
+		op = OP_BNOT
 	case "^":
 		op = OP_XOR
 	case "|":
@@ -1315,25 +1235,11 @@ func compileUnaryOpExpr(context *funcContext, reg int, expr ast.Expr, ec *expcon
 	var operandexpr ast.Expr
 	switch ex := expr.(type) {
 	case *ast.UnaryMinusOpExpr:
-		exp := constFold(ex)
-		if lvexpr, ok := exp.(*constLValueExpr); ok {
-			exp.SetLine(sline(expr))
-			compileExpr(context, reg, lvexpr, ec)
-			return
-		}
-		ex, _ = exp.(*ast.UnaryMinusOpExpr)
 		operandexpr = ex.Expr
 		opcode = OP_UNM
 	case *ast.UnaryNegateOpExpr:
-		exp := constFold(ex)
-		if lvexpr, ok := exp.(*constLValueExpr); ok {
-			exp.SetLine(sline(expr))
-			compileExpr(context, reg, lvexpr, ec)
-			return
-		}
-		ex, _ = exp.(*ast.UnaryNegateOpExpr)
 		operandexpr = ex.Expr
-		opcode = OP_BNEG
+		opcode = OP_BNOT
 	case *ast.UnaryNotOpExpr:
 		switch ex.Expr.(type) {
 		case *ast.TrueExpr:

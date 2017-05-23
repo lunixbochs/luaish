@@ -30,12 +30,12 @@ func tableSort(L *LState) int {
 }
 
 func tableGetN(L *LState) int {
-	L.Push(LNumber(L.CheckTable(1).Len()))
+	L.Push(LInt(L.CheckTable(1).Len()))
 	return 1
 }
 
 func tableMaxN(L *LState) int {
-	L.Push(LNumber(L.CheckTable(1).MaxN()))
+	L.Push(LInt(L.CheckTable(1).MaxN()))
 	return 1
 }
 

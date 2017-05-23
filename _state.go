@@ -205,11 +205,10 @@ func (cs *callFrameStack) Pop() *callFrame {
 type registry struct {
 	array []LValue
 	top   int
-	alloc *allocator
 }
 
-func newRegistry(size int, alloc *allocator) *registry {
-	return &registry{make([]LValue, size), 0, alloc}
+func newRegistry(size int) *registry {
+	return &registry{make([]LValue, size), 0}
 }
 
 func (rg *registry) SetTop(top int) {
@@ -279,13 +278,6 @@ func (rg *registry) Set(reg int, val LValue) {
 	if reg >= rg.top {
 		rg.top = reg + 1
 	}
-}
-
-func (rg *registry) SetNumber(reg int, val LNumber) {
-	rg.array[reg] = rg.alloc.LNumber2I(val)
-	if reg >= rg.top {
-		rg.top = reg + 1
-	}
 } /* }}} */
 
 /* Global {{{ */
@@ -316,7 +308,6 @@ func panicWithoutTraceback(L *LState) {
 }
 
 func newLState(options Options) *LState {
-	al := newAllocator(32)
 	ls := &LState{
 		G:       newGlobal(),
 		Parent:  nil,
@@ -325,9 +316,8 @@ func newLState(options Options) *LState {
 		Options: options,
 
 		stop:         0,
-		reg:          newRegistry(options.RegistrySize, al),
+		reg:          newRegistry(options.RegistrySize),
 		stack:        newCallFrameStack(options.CallStackSize),
-		alloc:        al,
 		currentFrame: nil,
 		wrapped:      false,
 		uvcache:      nil,
@@ -734,7 +724,7 @@ func (ls *LState) initCallFrame(cf *callFrame) { // +inline-start
 					for i := 0; i < nvarargs; i++ {
 						argtb.RawSetInt(i+1, ls.reg.Get(cf.LocalBase+np+i))
 					}
-					argtb.RawSetString("n", LNumber(nvarargs))
+					argtb.RawSetString("n", LInt(nvarargs))
 					//ls.reg.Set(cf.LocalBase+nargs+np, argtb)
 					ls.reg.array[cf.LocalBase+nargs+np] = argtb
 				} else {
@@ -1160,34 +1150,6 @@ func (ls *LState) ToBool(n int) bool {
 	return LVAsBool(ls.Get(n))
 }
 
-func (ls *LState) ToInt(n int) int {
-	if lv, ok := ls.Get(n).(LNumber); ok {
-		return int(lv)
-	}
-	if lv, ok := ls.Get(n).(LString); ok {
-		if num, err := parseNumber(string(lv)); err == nil {
-			return int(num)
-		}
-	}
-	return 0
-}
-
-func (ls *LState) ToInt64(n int) int64 {
-	if lv, ok := ls.Get(n).(LNumber); ok {
-		return int64(lv)
-	}
-	if lv, ok := ls.Get(n).(LString); ok {
-		if num, err := parseNumber(string(lv)); err == nil {
-			return int64(num)
-		}
-	}
-	return 0
-}
-
-func (ls *LState) ToNumber(n int) LNumber {
-	return LVAsNumber(ls.Get(n))
-}
-
 func (ls *LState) ToString(n int) string {
 	return LVAsString(ls.Get(n))
 }
@@ -1412,7 +1374,7 @@ func (ls *LState) GetTable(obj LValue, key LValue) LValue {
 }
 
 func (ls *LState) RawSet(tb *LTable, key LValue, value LValue) {
-	if n, ok := key.(LNumber); ok && math.IsNaN(float64(n)) {
+	if n, ok := key.(LFloat); ok && math.IsNaN(float64(n)) {
 		ls.RaiseError("table index is NaN")
 	} else if key == LNil {
 		ls.RaiseError("table index is nil")
@@ -1462,8 +1424,8 @@ func (ls *LState) ObjLen(v1 LValue) int {
 		ls.Push(v1)
 		ls.Call(1, 1)
 		ret := ls.reg.Pop()
-		if ret.Type() == LTNumber {
-			return int(ret.(LNumber))
+		if n, ok := ret.assertInt64(); ok {
+			return int(n)
 		}
 	} else if v1.Type() == LTTable {
 		return v1.(*LTable).Len()

@@ -75,7 +75,7 @@ Available options are:
 		script := flag.Arg(0)
 		argtb := L.NewTable()
 		for i := 1; i < nargs; i++ {
-			L.RawSet(argtb, lua.LNumber(i), lua.LString(flag.Arg(i)))
+			L.RawSet(argtb, lua.LInt(i), lua.LString(flag.Arg(i)))
 		}
 		L.SetGlobal("arg", argtb)
 		if opt_dt || opt_dc {
