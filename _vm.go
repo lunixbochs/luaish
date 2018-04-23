@@ -1058,7 +1058,7 @@ func equals(L *LState, lhs, rhs LValue, raw bool) bool {
 		ret = true
 	case LTInt:
 		v1, _ := lhs.assertInt64()
-		v2, _ := lhs.assertInt64()
+		v2, _ := rhs.assertInt64()
 		ret = v1 == v2
 	case LTFloat:
 		v1, _ := lhs.assertFloat64()
