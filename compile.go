@@ -3,7 +3,6 @@ package lua
 import (
 	"fmt"
 	"github.com/lunixbochs/luaish/ast"
-	"math"
 	"reflect"
 )
 
@@ -939,10 +938,7 @@ func compileExpr(context *funcContext, reg int, expr ast.Expr, ec *expcontext) i
 		code.AddABx(OP_LOADK, sreg, context.ConstIndex(LString(ex.Value)), sline(ex))
 		return sused
 	case *ast.NumberExpr:
-		num, err := parseNumber(ex.Value)
-		if err != nil {
-			num = LFloat(math.NaN())
-		}
+		num, _ := parseNumber(ex.Value)
 		code.AddABx(OP_LOADK, sreg, context.ConstIndex(num), sline(ex))
 		return sused
 	case *constLValueExpr:

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"math"
 	"reflect"
 	"strconv"
 	"strings"
@@ -146,16 +147,15 @@ func isArrayKey(v LFloat) bool {
 
 func parseNumber(number string) (LValue, error) {
 	number = strings.Trim(number, " \t\n")
-	if v, err := strconv.ParseInt(number, 0, LIntBit); err != nil {
-		if v2, err2 := strconv.ParseFloat(number, LFloatBit); err2 != nil {
-			return LFloat(0), err2
-		} else {
-			return LFloat(v2), nil
-		}
-	} else {
+	if v, err := strconv.ParseInt(number, 0, LIntBit); err == nil {
 		return LInt(v), nil
+	} else if v, err := strconv.ParseUint(number, 0, LIntBit); err == nil {
+		return LInt(int64(v)), nil
+	} else if v, err := strconv.ParseFloat(number, LFloatBit); err == nil {
+		return LFloat(v), nil
+	} else {
+		return LFloat(math.NaN()), err
 	}
-	return LInt(0), nil
 }
 
 func popenArgs(arg string) (string, []string) {
